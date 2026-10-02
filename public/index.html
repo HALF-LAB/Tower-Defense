@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Fruit Siege - 3D Tower Defense</title>
+  <meta name="description" content="A top-down 3D multiplayer tower defense. Build your own maze out of towers and walls and stop the fruit invasion." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍉</text></svg>" />
+  <link rel="stylesheet" href="css/style.css" />
+  <script type="importmap">
+    { "imports": { "three": "/vendor/three/three.module.js" } }
+  </script>
+</head>
+<body>
+  <canvas id="game"></canvas>
+  <canvas id="overlay"></canvas>
+
+  <!-- ============================== main menu ============================== -->
+  <div id="menu" class="screen">
+    <div class="menu-card">
+      <h1 class="logo"><span>Fruit</span> Siege</h1>
+      <p class="tagline">Build a maze of towers and walls. Squash the fruit before it escapes the kitchen!</p>
+      <label class="field">
+        <span>Your chef name</span>
+        <input id="name-input" maxlength="16" placeholder="Chef" autocomplete="off" />
+      </label>
+      <button id="btn-solo" class="btn big primary">Play Solo</button>
+      <div class="divider"><span>Multiplayer co-op</span></div>
+      <button id="btn-host" class="btn big">Host a Game</button>
+      <div class="join-row">
+        <input id="code-input" maxlength="4" placeholder="CODE" autocomplete="off" />
+        <button id="btn-join" class="btn">Join</button>
+      </div>
+      <p id="mp-note" class="note"></p>
+      <div class="menu-links">
+        <button class="link" data-open="help">How to play</button>
+        <button class="link" data-open="almanac">Fruit Almanac</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================== HUD ================================= -->
+  <div id="hud" class="hidden">
+    <div id="topbar">
+      <div class="stat" title="Lives - fruit that escape cost lives"><span class="ico">❤️</span><b id="hud-lives">25</b></div>
+      <div class="stat" title="Your gold"><span class="ico">🪙</span><b id="hud-gold">0</b></div>
+      <div class="stat" title="Wave"><span class="ico">🌊</span><b id="hud-wave">0</b><small id="hud-wave-of">/30</small></div>
+      <div class="stat wide" id="hud-phase">Build your maze!</div>
+      <button id="btn-ready" class="btn primary">Start Wave ▶</button>
+      <div class="stat" title="Length of the path the fruit must walk"><span class="ico">🧭</span><b id="hud-path">0</b></div>
+    </div>
+
+    <div id="corner-left">
+      <button class="btn icon" id="btn-speed" title="Game speed">1x</button>
+      <button class="btn icon" id="btn-pause" title="Pause (P)">❚❚</button>
+      <button class="btn icon" id="btn-sound" title="Sound (M)">🔊</button>
+      <button class="btn icon" data-open="almanac" title="Fruit Almanac">📖</button>
+      <button class="btn icon" data-open="help" title="How to play (H)">?</button>
+      <button class="btn icon" id="btn-quit" title="Back to menu">⏏</button>
+    </div>
+
+    <div id="side-right">
+      <div id="room-box" class="panel hidden">
+        <div>Room <b id="room-code">----</b></div>
+        <button id="btn-invite" class="btn tiny">Copy invite link</button>
+      </div>
+      <div id="players" class="panel"></div>
+    </div>
+
+    <div id="wave-preview" class="panel"></div>
+
+    <div id="selection" class="panel hidden"></div>
+
+    <div id="chat" class="hidden">
+      <div id="chat-log"></div>
+      <input id="chat-input" maxlength="200" placeholder="Press Enter to chat" autocomplete="off" />
+    </div>
+
+    <div id="buildbar"></div>
+    <div id="tooltip" class="panel hidden"></div>
+    <div id="pause-banner" class="hidden">PAUSED</div>
+  </div>
+
+  <div id="toasts"></div>
+
+  <!-- ================================ modals ================================ -->
+  <div id="modal-help" class="modal hidden">
+    <div class="modal-card">
+      <button class="close" data-close>✕</button>
+      <h2>How to play</h2>
+      <div class="help-grid">
+        <div>
+          <h3>The goal</h3>
+          <p>Fruit roll in from the <b class="red">left</b> and try to escape off the <b class="green">right</b> edge. Every fruit that gets out costs lives. Survive all 30 waves!</p>
+          <h3>Build your own lanes</h3>
+          <p>There is no fixed road. Fruit always take the shortest open route, so place <b>walls</b> (cheap!) and <b>towers</b> to build a long, twisty maze. You can never fully block the path. The glowing arrows show the route the fruit will take, and while placing something you see the new route before you commit.</p>
+          <p>Drop a tower <b>on top of a wall</b> to turn that wall into a tower. You get the wall's cost back.</p>
+          <h3>Skin hardness</h3>
+          <p>Every fruit's toughness comes from how hard its skin is in real life. Soft raspberries pop in one hit, but coconuts have huge HP and <b>armor</b> that blocks damage from every hit. Use the <b>Peeler</b> to strip armor, the <b>Skewer</b> to pierce it, and <b>fire</b> to cook straight through it.</p>
+        </div>
+        <div>
+          <h3>Controls</h3>
+          <table class="keys">
+            <tr><td><kbd>F</kbd></td><td>Wall (drag to paint many)</td></tr>
+            <tr><td><kbd>1</kbd>-<kbd>0</kbd></td><td>Pick a tower</td></tr>
+            <tr><td>Left click</td><td>Build / select</td></tr>
+            <tr><td>Right click / <kbd>Esc</kbd></td><td>Cancel</td></tr>
+            <tr><td><kbd>U</kbd> / <kbd>Del</kbd></td><td>Upgrade / sell selected</td></tr>
+            <tr><td><kbd>T</kbd></td><td>Change targeting</td></tr>
+            <tr><td><kbd>Space</kbd></td><td>Ready / start wave</td></tr>
+            <tr><td><kbd>W A S D</kbd> / right-drag</td><td>Move camera</td></tr>
+            <tr><td><kbd>Q</kbd> <kbd>E</kbd> / middle-drag</td><td>Rotate camera</td></tr>
+            <tr><td>Mouse wheel</td><td>Zoom</td></tr>
+            <tr><td><kbd>P</kbd> / <kbd>M</kbd></td><td>Pause / mute</td></tr>
+            <tr><td><kbd>Enter</kbd></td><td>Chat (multiplayer)</td></tr>
+          </table>
+          <h3>Multiplayer</h3>
+          <p>Host a game and share the 4-letter code (or invite link). Everyone defends the same kitchen: lives are shared, each chef has their own gold, and <b>every chef earns gold from every squashed fruit</b>. Waves start when all chefs are ready.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-almanac" class="modal hidden">
+    <div class="modal-card wide">
+      <button class="close" data-close>✕</button>
+      <h2>Fruit Almanac</h2>
+      <p class="sub">Toughness comes from real-world skin hardness. HP grows with hardness<sup>1.75</sup> and armor with hardness<sup>2</sup>. Armor is subtracted from every hit (a hit always deals at least 20%).</p>
+      <div id="almanac-list"></div>
+    </div>
+  </div>
+
+  <div id="modal-end" class="modal hidden">
+    <div class="modal-card">
+      <h2 id="end-title">Game Over</h2>
+      <p id="end-text"></p>
+      <div id="end-stats"></div>
+      <div class="end-buttons">
+        <button id="btn-continue" class="btn primary hidden">Keep going (endless)</button>
+        <button id="btn-restart" class="btn primary">Play again</button>
+        <button id="btn-end-menu" class="btn">Main menu</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="loading" class="screen"><div class="spinner"></div><p>Preparing the kitchen...</p></div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+{
+  "name": "fruit-siege-tower-defense",
+  "version": "1.0.0",
+  "description": "Top-down 3D multiplayer tower defense where you maze fruit with towers and walls.",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test/sim.test.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "three": "^0.186.1",
+    "ws": "^8.18.0"
+  },
+  "license": "MIT"
+}
