@@ -106,7 +106,7 @@ function begin(s, code) {
   $('hud').classList.remove('hidden');
   ui.showRoom(code);
   ui.showChat(s.online);
-  if (code) history.replaceState(null, '', `?room=${code}`);
+  if (code) setUrl(`?room=${code}`);
   ui.toast(code ? `Room <b>${code}</b> - share the code or invite link with friends!` : 'Build a maze with walls and towers, then press <b>Start Wave</b>!', '', 4500);
 }
 
@@ -147,7 +147,13 @@ function quitToMenu() {
   ui.hideEnd();
   $('hud').classList.add('hidden');
   $('menu').classList.remove('hidden');
-  history.replaceState(null, '', location.pathname);
+  setUrl(location.pathname);
+}
+
+function setUrl(url) {
+  try {
+    history.replaceState(null, '', url);
+  } catch {}
 }
 
 function onMessage(m) {
@@ -509,17 +515,24 @@ $('btn-ready').addEventListener('click', readyUp);
 $('btn-speed').addEventListener('click', () => state && send({ c: 'speed', v: (state.info.speed % 3) + 1 }));
 $('btn-pause').addEventListener('click', () => state && send({ c: 'pause', v: !state.info.paused }));
 $('btn-sound').addEventListener('click', toggleSound);
+// Leaving takes a second click so a stray click doesn't end the game.
+let quitArmedAt = 0;
 $('btn-quit').addEventListener('click', () => {
-  if (!session || confirm('Leave this game and go back to the menu?')) quitToMenu();
-});
-$('btn-invite').addEventListener('click', async () => {
-  const link = `${location.origin}${location.pathname}?room=${session.code}`;
-  try {
-    await navigator.clipboard.writeText(link);
-    ui.toast('Invite link copied!');
-  } catch {
-    prompt('Share this link with your friends:', link);
+  const now = performance.now();
+  if (!session || now - quitArmedAt < 2500) {
+    quitArmedAt = 0;
+    quitToMenu();
+    return;
   }
+  quitArmedAt = now;
+  ui.toast('Click ⏏ again to leave this game');
+});
+$('btn-invite').addEventListener('click', () => {
+  const link = `${location.origin}${location.pathname}?room=${session.code}`;
+  navigator.clipboard.writeText(link).then(
+    () => ui.toast('Invite link copied!'),
+    () => ui.toast(`Share this link: <b>${esc(link)}</b>`, '', 8000),
+  );
 });
 $('btn-restart').addEventListener('click', () => send({ c: 'restart' }));
 $('btn-continue').addEventListener('click', () => {
@@ -696,7 +709,7 @@ async function boot() {
   setMenuBusy(false);
   const note = $('mp-note');
   if (!mpAvailable) {
-    note.textContent = 'Multiplayer needs the game server: run "npm start" and open the address it prints.';
+    note.textContent = 'Online co-op needs the game server. Run "npm start" in the project folder and open the address it prints.';
     note.classList.add('warn');
   } else if (room) {
     note.textContent = `Invited to room ${room.toUpperCase()} - enter your name and press Join!`;

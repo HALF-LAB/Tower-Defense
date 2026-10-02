@@ -12,6 +12,7 @@
   --ice: #8fe3ff;
   --radius: 14px;
   --font: 'Fredoka', 'Trebuchet MS', 'Segoe UI', system-ui, sans-serif;
+  color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
